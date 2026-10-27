@@ -1,4 +1,5 @@
 const URL_API       = '/api/ultimos';
+const URL_HISTORICO = '/api/historico';
 const INTERVALO_MS  = 1000;
 const OFFLINE_MS    = 10000;
 const MAX_PONTOS    = 3600;
@@ -64,6 +65,36 @@ function criarGrafico(canvasId, comLinha, xTitulo, yTitulo, xFmt) {
 const chartRms  = criarGrafico('chart-rms',  true,  'tempo', 'RMS (m/s²)', hora);
 const chartRpm  = criarGrafico('chart-rpm',  true,  'tempo', 'RPM', hora);
 const chartDisp = criarGrafico('chart-disp', false, 'RPM', 'RMS (m/s²)');
+
+async function carregarHistorico() {
+  try {
+    const resp = await fetch(`${URL_HISTORICO}?minutos=${janelaMin()}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const dados = await resp.json();
+ 
+    offsetServidor = dados.agora - Date.now() / 1000;
+    linhas.length = 0;
+    const todos = [];
+ 
+    MOTORES.forEach(m => {
+      const pts = dados[m] || [];
+      buffer[m] = pts.map(p => ({ x: p.t, rms: p.rms, pico: p.pico, rpm: p.rpm }));
+ 
+      const ult = pts[pts.length - 1];
+      if (ult) {
+        ultimoRecebido[m] = ult.recebido_em;
+        ultimoVisto[m] = (ult.recebido_em - offsetServidor) * 1000;
+      }
+      pts.forEach(p => todos.push({ x: p.t, motor: m, rms: p.rms, pico: p.pico, rpm: p.rpm }));
+    });
+ 
+    todos.sort((a, b) => b.x - a.x);
+    linhas.push(...todos.slice(0, MAX_LINHAS));
+  } catch (err) {
+    console.error('Falha ao carregar o histórico:', err);
+  }
+  render();
+}
 
 function processar(motor, leitura) {
   if (!leitura) return;
@@ -175,6 +206,10 @@ function render() {
   renderTabela();
 }
 
-$('select-janela').addEventListener('change', render);
-atualizar();
-setInterval(atualizar, INTERVALO_MS);
+$('select-janela').addEventListener('change', carregarHistorico);
+ 
+(async () => {
+  await carregarHistorico();
+  await atualizar();
+  setInterval(atualizar, INTERVALO_MS);
+})();

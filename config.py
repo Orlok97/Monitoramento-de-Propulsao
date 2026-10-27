@@ -12,3 +12,6 @@ class Config:
     MQTT_REFRESH_TIME = float(os.getenv('MQTT_REFRESH_TIME', 1.0))
     MQTT_TLS_ENABLED = False
     MQTT_TOPIC_PREFIX = os.getenv('MQTT_TOPIC_PREFIX', 'pi6-univesp-x7k2q')
+    
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///monitoramento.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
