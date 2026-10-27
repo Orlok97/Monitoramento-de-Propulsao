@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoramento de Propulsão</title>
+  <link rel="stylesheet" href="/static/css/tailwind.css">
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
+
+  <!-- cabeçalho -->
+  <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+      <div>
+        <h1 class="text-lg font-semibold">Monitoramento do Sistema de Propulsão</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Vibração × rotação · Motores BB e BE</p>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <span id="ultima-atualizacao" class="text-slate-500 dark:text-slate-400">Última atualização: --:--:--</span>
+        <span id="conexao-status"
+              class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          <span class="h-2 w-2 rounded-full bg-current"></span>
+          <span id="conexao-texto">Aguardando</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl space-y-6 px-4 py-6">
+
+    <!-- cards dos motores -->
+    <section class="grid gap-4 md:grid-cols-2">
+
+      <!-- BB -->
+      <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex items-center justify-between">
+          <h2 class="flex items-center gap-2 text-base font-semibold">
+            <span class="h-3 w-3 rounded-full bg-blue-500"></span> Motor de Bombordo (BB)
+          </h2>
+          <span id="bb-status"
+                class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            Aguardando
+          </span>
+        </div>
+
+        <dl class="mt-4 grid grid-cols-3 gap-4">
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Rotação</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="bb-rpm">--</span> <span class="text-sm font-normal text-slate-500">RPM</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Vibração RMS</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="bb-rms">--</span> <span class="text-sm font-normal text-slate-500">m/s²</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Pico</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="bb-pico">--</span> <span class="text-sm font-normal text-slate-500">m/s²</span></dd>
+          </div>
+        </dl>
+
+        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+          Última leitura: <span id="bb-atualizado">--:--:--</span>
+        </p>
+      </article>
+
+      <!-- BE -->
+      <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex items-center justify-between">
+          <h2 class="flex items-center gap-2 text-base font-semibold">
+            <span class="h-3 w-3 rounded-full bg-red-500"></span> Motor de Boreste (BE)
+          </h2>
+          <span id="be-status"
+                class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            Aguardando
+          </span>
+        </div>
+
+        <dl class="mt-4 grid grid-cols-3 gap-4">
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Rotação</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="be-rpm">--</span> <span class="text-sm font-normal text-slate-500">RPM</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Vibração RMS</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="be-rms">--</span> <span class="text-sm font-normal text-slate-500">m/s²</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Pico</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="be-pico">--</span> <span class="text-sm font-normal text-slate-500">m/s²</span></dd>
+          </div>
+        </dl>
+
+        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+          Última leitura: <span id="be-atualizado">--:--:--</span>
+        </p>
+      </article>
+    </section>
+
+    <!-- filtro + legenda -->
+    <section class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-4 text-sm">
+        <span class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-blue-500"></span> BB</span>
+        <span class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-red-500"></span> BE</span>
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <span class="text-slate-500 dark:text-slate-400">Janela</span>
+        <select id="select-janela"
+                class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900">
+          <option value="5">Últimos 5 min</option>
+          <option value="10" selected>Últimos 10 min</option>
+          <option value="60">Última 1 h</option>
+          <option value="360">Últimas 6 h</option>
+        </select>
+      </label>
+    </section>
+
+    <!-- gráficos -->
+    <section class="grid gap-4 lg:grid-cols-2">
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h3 class="mb-3 text-sm font-semibold">Vibração (RMS) × tempo</h3>
+        <div class="relative h-64"><canvas id="chart-rms" class="h-full w-full"></canvas></div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h3 class="mb-3 text-sm font-semibold">Rotação × tempo</h3>
+        <div class="relative h-64"><canvas id="chart-rpm" class="h-full w-full"></canvas></div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+        <h3 class="mb-3 text-sm font-semibold">Vibração × rotação (dispersão)</h3>
+        <div class="relative h-80"><canvas id="chart-disp" class="h-full w-full"></canvas></div>
+      </div>
+    </section>
+
+    <!-- tabela de leituras -->
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <h3 class="text-sm font-semibold">Últimas leituras</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+            <tr>
+              <th class="px-4 py-2">Hora</th>
+              <th class="px-4 py-2">Motor</th>
+              <th class="px-4 py-2 text-right">RPM</th>
+              <th class="px-4 py-2 text-right">RMS (m/s²)</th>
+              <th class="px-4 py-2 text-right">Pico (m/s²)</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-leituras" class="divide-y divide-slate-100 dark:divide-slate-800">
+            <tr id="tabela-vazia">
+              <td colspan="5" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Sem dados recebidos.</td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="mx-auto max-w-7xl px-4 pb-8 text-center text-xs text-slate-500 dark:text-slate-400">
+    Projeto Integrador VI · UNIVESP
+  </footer>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/js/script.js"></script>
+
+</body>
+</html>
