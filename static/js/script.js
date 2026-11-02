@@ -1,4 +1,4 @@
-const URL_API       = '/api/ultimos';
+const URL_ULTIMOS   = '/api/ultimos';
 const URL_HISTORICO = '/api/historico';
 const INTERVALO_MS  = 1000;
 const OFFLINE_MS    = 10000;
@@ -23,10 +23,12 @@ const BADGE_MOTOR = {
 const $ = id => document.getElementById(id);
 const buffer = { bb: [], be: [] };
 const ultimoRecebido = { bb: null, be: null };
-const ultimoVisto = { bb: 0, be: 0 }; 
+const ultimoVisto = { bb: 0, be: 0 };
 const linhas = [];
-
+let offsetServidor = 0;
+const agoraServidor = () => Date.now() / 1000 + offsetServidor;
 const hora = epochSeg => new Date(epochSeg * 1000).toLocaleTimeString('pt-BR');
+const janelaMin = () => Number($('select-janela').value);
 
 // ------------------------------------------------------------ Gráficos
 const escuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -71,15 +73,15 @@ async function carregarHistorico() {
     const resp = await fetch(`${URL_HISTORICO}?minutos=${janelaMin()}`, { cache: 'no-store' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const dados = await resp.json();
- 
+
     offsetServidor = dados.agora - Date.now() / 1000;
     linhas.length = 0;
     const todos = [];
- 
+
     MOTORES.forEach(m => {
       const pts = dados[m] || [];
       buffer[m] = pts.map(p => ({ x: p.t, rms: p.rms, pico: p.pico, rpm: p.rpm }));
- 
+
       const ult = pts[pts.length - 1];
       if (ult) {
         ultimoRecebido[m] = ult.recebido_em;
@@ -87,7 +89,7 @@ async function carregarHistorico() {
       }
       pts.forEach(p => todos.push({ x: p.t, motor: m, rms: p.rms, pico: p.pico, rpm: p.rpm }));
     });
- 
+
     todos.sort((a, b) => b.x - a.x);
     linhas.push(...todos.slice(0, MAX_LINHAS));
   } catch (err) {
@@ -103,17 +105,17 @@ function processar(motor, leitura) {
   ultimoRecebido[motor] = leitura.recebido_em;
   ultimoVisto[motor] = Date.now();
 
-  const x = Date.now() / 1000;
-  buffer[motor].push({ x, rms: leitura.rms, pico: leitura.pico, rpm: leitura.rpm });
+  const ponto = { x: leitura.t, rms: leitura.rms, pico: leitura.pico, rpm: leitura.rpm };
+  buffer[motor].push(ponto);
   if (buffer[motor].length > MAX_PONTOS) buffer[motor].shift();
 
-  linhas.unshift({ x, motor, rms: leitura.rms, pico: leitura.pico, rpm: leitura.rpm });
+  linhas.unshift({ ...ponto, motor });
   if (linhas.length > MAX_LINHAS) linhas.pop();
 }
 
 async function atualizar() {
   try {
-    const resp = await fetch(URL_API, { cache: 'no-store' });
+    const resp = await fetch(URL_ULTIMOS, { cache: 'no-store' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const dados = await resp.json();
     MOTORES.forEach(m => processar(m, dados[m]));
@@ -128,11 +130,7 @@ async function atualizar() {
 function definirConexao(ok) {
   $('conexao-status').className = BASE_BADGE_CONEXAO + (ok ? ESTADOS.online : ESTADOS.offline);
   $('conexao-texto').textContent = ok ? 'Servidor conectado' : 'Servidor offline';
-  if (ok) $('ultima-atualizacao').textContent = 'Última atualização: ' + hora(Date.now() / 1000);
-}
-
-function janelaMin() {
-  return Number($('select-janela').value);
+  if (ok) $('ultima-atualizacao').textContent = 'Última atualização: ' + hora(agoraServidor());
 }
 
 function renderCards() {
@@ -150,7 +148,7 @@ function renderCards() {
     $(m + '-status').textContent = texto;
 
     if (ult) {
-      $(m + '-rpm').textContent = Math.round(ult.rpm);
+      $(m + '-rpm').textContent = ult.rpm != null ? Math.round(ult.rpm) : '--';
       $(m + '-rms').textContent = ult.rms.toFixed(3);
       $(m + '-pico').textContent = ult.pico != null ? ult.pico.toFixed(3) : '--';
       $(m + '-atualizado').textContent = hora(ult.x);
@@ -159,12 +157,12 @@ function renderCards() {
 }
 
 function renderGraficos() {
-  const limite = Date.now() / 1000 - janelaMin() * 60;
+  const limite = agoraServidor() - janelaMin() * 60;
   MOTORES.forEach((m, i) => {
     const pts = buffer[m].filter(p => p.x >= limite);
     chartRms.data.datasets[i].data  = pts.map(p => ({ x: p.x,   y: p.rms }));
-    chartRpm.data.datasets[i].data  = pts.map(p => ({ x: p.x,   y: p.rpm }));
-    chartDisp.data.datasets[i].data = pts.map(p => ({ x: p.rpm, y: p.rms }));
+    chartRpm.data.datasets[i].data  = pts.filter(p => p.rpm != null).map(p => ({ x: p.x,   y: p.rpm }));
+    chartDisp.data.datasets[i].data = pts.filter(p => p.rpm != null).map(p => ({ x: p.rpm, y: p.rms }));
   });
   [chartRms, chartRpm, chartDisp].forEach(c => c.update('none'));
 }
@@ -191,7 +189,7 @@ function renderTabela() {
     tr.append(
       celula(hora(l.x)),
       tdMotor,
-      celula(Math.round(l.rpm), 'text-right tabular-nums'),
+      celula(l.rpm != null ? Math.round(l.rpm) : '--', 'text-right tabular-nums'),
       celula(l.rms.toFixed(3), 'text-right tabular-nums'),
       celula(l.pico != null ? l.pico.toFixed(3) : '--', 'text-right tabular-nums'),
     );
@@ -207,7 +205,7 @@ function render() {
 }
 
 $('select-janela').addEventListener('change', carregarHistorico);
- 
+
 (async () => {
   await carregarHistorico();
   await atualizar();

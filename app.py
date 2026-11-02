@@ -20,17 +20,20 @@ mqtt = Mqtt()
 mqtt.init_app(app)
 
 PREFIXO = app.config['MQTT_TOPIC_PREFIX']
-MOTORES = {'bb', 'be'}
+MOTORES = ('bb', 'be')
+TIPOS = ('vibracao', 'rpm')
 MAX_PONTOS_API = 1000
+RPM_MAX_IDADE_S = 3.0
 
-lock = threading.Lock()
-ultimos = {'bb': None, 'be': None}
+rpm_atual = {m: None for m in MOTORES}
+rpm_lock = threading.Lock()
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     if rc == 0:
         print('MQTT conectado')
-        mqtt.subscribe(f'{PREFIXO}/+/dados')
+        mqtt.subscribe(f'{PREFIXO}/+/vibracao')
+        mqtt.subscribe(f'{PREFIXO}/+/rpm')
     else:
         print('Falha na conexão MQTT, rc =', rc)
 
@@ -38,30 +41,44 @@ def handle_connect(client, userdata, flags, rc):
 @mqtt.on_message()
 def handle_message(client, userdata, message):
     partes = message.topic.split('/')
-    if len(partes) != 3 or partes[0] != PREFIXO or partes[2] != 'dados' or partes[1] not in MOTORES:
+    if len(partes) != 3 or partes[0] != PREFIXO or partes[1] not in MOTORES or partes[2] not in TIPOS:
         return
-    motor = partes[1]
+    motor, tipo = partes[1], partes[2]
 
     try:
         d = json.loads(message.payload.decode())
-        rms, rpm = float(d['rms']), float(d['rpm'])
-        if not (0 <= rms < 1000 and 0 <= rpm < 10000):
+
+        if tipo == 'rpm':
+            rpm = float(d['rpm'])
+            if not 0 <= rpm < 10000:
+                return
+            with rpm_lock:
+                rpm_atual[motor] = {'rpm': rpm, 'recebido_em': time.time()}
+            return
+
+        rms = float(d['rms'])
+        if not 0 <= rms < 1000:
             return
         pico = d.get('pico')
+        pico = float(pico) if pico is not None else None
         ts = float(d.get('ts', 0) or 0)
     except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError, ValueError):
         return
 
     agora = time.time()
+    with rpm_lock:
+        ultimo = rpm_atual[motor]
+    rpm = ultimo['rpm'] if ultimo and agora - ultimo['recebido_em'] <= RPM_MAX_IDADE_S else None
+
     leitura = Leitura(
-    motor=motor,
-    t=ts if ts > 1.6e9 else agora,
-    ts_dispositivo=ts,
-    recebido_em=agora,
-    rms=rms,
-    pico=pico,
-    rpm=rpm,
-)
+        motor=motor,
+        t=ts if ts > 1.6e9 else agora,
+        ts_dispositivo=ts,
+        recebido_em=agora,
+        rms=rms,
+        pico=pico,
+        rpm=rpm,
+    )
 
     with app.app_context():
         try:
@@ -71,28 +88,32 @@ def handle_message(client, userdata, message):
             db.session.rollback()
             app.logger.exception('Falha ao gravar leitura')
 
+def media(valores):
+    valores = [v for v in valores if v is not None]
+    return sum(valores) / len(valores) if valores else None
+
+
 def reduzir(pontos, minutos, limite=MAX_PONTOS_API):
     """Se houver pontos demais, agrupa em intervalos de tempo iguais (média; pico = máximo)."""
     if len(pontos) <= limite:
         return pontos
- 
+
     largura = (minutos * 60) / limite
     baldes = {}
     for p in pontos:
         baldes.setdefault(int(p['t'] // largura), []).append(p)
- 
+
     saida = []
     for k in sorted(baldes):
         g = baldes[k]
-        n = len(g)
         picos = [p['pico'] for p in g if p['pico'] is not None]
         saida.append({
             'motor': g[0]['motor'],
-            't': sum(p['t'] for p in g) / n,
+            't': media([p['t'] for p in g]),
             'recebido_em': max(p['recebido_em'] for p in g),
-            'rms': sum(p['rms'] for p in g) / n,
+            'rms': media([p['rms'] for p in g]),
             'pico': max(picos) if picos else None,
-            'rpm': sum(p['rpm'] for p in g) / n,
+            'rpm': media([p['rpm'] for p in g]),
         })
     return saida
 
@@ -115,7 +136,6 @@ def api_historico():
     minutos = min(max(request.args.get('minutos', 10, type=int), 1), 1440)
     agora = time.time()
     desde = agora - minutos * 60
- 
     saida = {'agora': agora}
     for m in MOTORES:
         leituras = db.session.scalars(

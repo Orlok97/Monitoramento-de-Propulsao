@@ -5,12 +5,12 @@ class Leitura(db.Model):
     __tablename__ = 'leituras'
     id = db.Column(db.Integer, primary_key=True)
     motor = db.Column(db.String(2), nullable=False)
-    t = db.Column(db.Float, nullable=False)                  
-    ts_dispositivo = db.Column(db.Float)                     
+    t = db.Column(db.Float, nullable=False)
+    ts_dispositivo = db.Column(db.Float)
     recebido_em = db.Column(db.Float, nullable=False)
     rms = db.Column(db.Float, nullable=False)
     pico = db.Column(db.Float)
-    rpm = db.Column(db.Float, nullable=False)
+    rpm = db.Column(db.Float)
 
     __table_args__ = (
         db.Index('idx_leituras_motor_t', 'motor', 't'),
