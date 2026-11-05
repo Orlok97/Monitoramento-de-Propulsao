@@ -14,7 +14,7 @@
     <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4">
       <div>
         <h1 class="text-lg font-semibold">Monitoramento do Sistema de Propulsão</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Vibração × rotação · Motores BB e BE</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">MPU-6050 + piezoelétrico + rotação dos motores BB e BE</p>
       </div>
       <div class="flex items-center gap-3 text-sm">
         <span id="ultima-atualizacao" class="text-slate-500 dark:text-slate-400">Última atualização: --:--:--</span>
@@ -44,7 +44,7 @@
           </span>
         </div>
 
-        <dl class="mt-4 grid grid-cols-3 gap-4">
+        <dl class="mt-4 grid grid-cols-2 gap-4">
           <div>
             <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Rotação</dt>
             <dd class="mt-1 text-2xl font-semibold"><span id="bb-rpm">--</span> <span class="text-sm font-normal text-slate-500">RPM</span></dd>
@@ -57,9 +57,21 @@
             <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Pico</dt>
             <dd class="mt-1 text-2xl font-semibold"><span id="bb-pico">--</span> <span class="text-sm font-normal text-slate-500">m/s²</span></dd>
           </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Piezo RMS</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="bb-pz-rms">--</span></dd>
+            <p class="text-xs text-slate-500">contagens ADC</p>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Fator de crista</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="bb-pz-crista">--</span></dd>
+          </div>
         </dl>
 
-        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+        <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          Sensores: MPU <span id="bb-mpu-status">--</span> · Piezo <span id="bb-pz-status">--</span>
+        </p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Última leitura: <span id="bb-atualizado">--:--:--</span>
         </p>
       </article>
@@ -76,7 +88,7 @@
           </span>
         </div>
 
-        <dl class="mt-4 grid grid-cols-3 gap-4">
+        <dl class="mt-4 grid grid-cols-2 gap-4">
           <div>
             <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Rotação</dt>
             <dd class="mt-1 text-2xl font-semibold"><span id="be-rpm">--</span> <span class="text-sm font-normal text-slate-500">RPM</span></dd>
@@ -89,9 +101,21 @@
             <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Pico</dt>
             <dd class="mt-1 text-2xl font-semibold"><span id="be-pico">--</span> <span class="text-sm font-normal text-slate-500">m/s²</span></dd>
           </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Piezo RMS</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="be-pz-rms">--</span></dd>
+            <p class="text-xs text-slate-500">contagens ADC</p>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Fator de crista</dt>
+            <dd class="mt-1 text-2xl font-semibold"><span id="be-pz-crista">--</span></dd>
+          </div>
         </dl>
 
-        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+        <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          Sensores: MPU <span id="be-mpu-status">--</span> · Piezo <span id="be-pz-status">--</span>
+        </p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Última leitura: <span id="be-atualizado">--:--:--</span>
         </p>
       </article>
@@ -118,8 +142,13 @@
     <!-- gráficos -->
     <section class="grid gap-4 lg:grid-cols-2">
       <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-3 text-sm font-semibold">Vibração (RMS) × tempo</h3>
+        <h3 class="mb-3 text-sm font-semibold">MPU-6050 — aceleração RMS × tempo</h3>
         <div class="relative h-64"><canvas id="chart-rms" class="h-full w-full"></canvas></div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h3 class="mb-3 text-sm font-semibold">Piezoelétrico — RMS × tempo (contagens ADC)</h3>
+        <div class="relative h-64"><canvas id="chart-pz" class="h-full w-full"></canvas></div>
       </div>
 
       <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -128,7 +157,7 @@
       </div>
 
       <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
-        <h3 class="mb-3 text-sm font-semibold">Vibração × rotação (dispersão)</h3>
+        <h3 class="mb-3 text-sm font-semibold">MPU-6050 — aceleração RMS × rotação (dispersão)</h3>
         <div class="relative h-80"><canvas id="chart-disp" class="h-full w-full"></canvas></div>
       </div>
     </section>
@@ -146,12 +175,15 @@
               <th class="px-4 py-2">Motor</th>
               <th class="px-4 py-2 text-right">RPM</th>
               <th class="px-4 py-2 text-right">RMS (m/s²)</th>
-              <th class="px-4 py-2 text-right">Pico (m/s²)</th>
+              <th class="px-4 py-2 text-right">Pico MPU (m/s²)</th>
+              <th class="px-4 py-2 text-right">Piezo RMS (ADC)</th>
+              <th class="px-4 py-2 text-right">Crista piezo</th>
+              <th class="px-4 py-2">Validade</th>
             </tr>
           </thead>
           <tbody id="tabela-leituras" class="divide-y divide-slate-100 dark:divide-slate-800">
             <tr id="tabela-vazia">
-              <td colspan="5" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Sem dados recebidos.</td>
+              <td colspan="8" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Sem dados recebidos.</td>
             </tr>
 
           </tbody>
